@@ -1,0 +1,13 @@
+# 高德地图 Personal-Map Skill 依赖包
+# 
+# 安装方式：
+#   pip install -r requirements.txt
+#
+# 或者使用虚拟环境：
+#   python -m venv venv
+#   source venv/bin/activate  # Linux/Mac
+#   # 或 venv\Scripts\activate  # Windows
+#   pip install -r requirements.txt
+
+# HTTP 请求库，用于调用高德地图 API
+requests>=2.25.1

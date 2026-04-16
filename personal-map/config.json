@@ -1,0 +1,19 @@
+{
+  "skill": {
+    "name": "personal-map",
+    "version": "1.0.0",
+    "description": "高德个人地图Skill，直接调用高德地图官方RESTful API，提供完整的地理信息服务能力，并支持地图在高德App中扫码查看及分析给他人",
+    "author": "Aone Copilot",
+    "license": "MIT"
+  },
+  "dependencies": {
+    "requests": "^2.25.1"
+  },
+  "env_vars": {
+    "AMAP_API_KEY": {
+      "description": "高德地图API Key。首次使用时，系统会自动检测并提示配置。获取步骤：1. 访问 https://lbs.amap.com/ 2. 注册/登录账号 3. 创建应用获取 Web服务 API Key。配置方式：export AMAP_API_KEY='your_api_key_here' 或在初始化时传入",
+      "required": true
+    }
+  },
+  "entry_point": "scripts/amap_personal_map_client.py"
+}
