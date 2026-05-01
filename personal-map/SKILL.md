@@ -146,7 +146,86 @@ result = client.maps_direction_driving("116.397451,39.909221", "116.397029,39.91
 result = client.maps_direction_transit_integrated("116.397451,39.909221", "116.397029,39.917839", city="北京")
 ```
 
-### 生成个人地图（最终步骤）
+> ⚠️ **重要提示**：`maps_direction_driving` 返回的路线 `polyline` 在 `paths[].steps[].polyline` 中（各段用分号连接），顶层 `paths[].polyline` 常为空。
+
+### 6. 静态地图（直接生成带路况的路线图）
+
+**`/v3/staticmap`** 可直接生成带实时路况 + 精确路线的地图图片，无需生成二维码。
+
+**API 端点**：`https://restapi.amap.com/v3/staticmap`
+
+**关键发现**：`paths` 参数需用**分号**分隔坐标点（高德官方文档写逗号，实测逗号返回 20003 错误，分号正常）。
+
+**路径规划 → 静态地图完整示例**：
+
+```python
+import requests, json
+
+AMAP_KEY = os.getenv('AMAP_API_KEY')
+
+# Step 1: 地理编码
+def geocode(address, city):
+    url = f"https://restapi.amap.com/v3/geocode/geo?key={AMAP_KEY}&address={address}&city={city}"
+    resp = requests.get(url).json()
+    return resp['geocodes'][0]['location']
+
+# Step 2: 驾车路径规划（获取分号连接的 polyline）
+def get_driving_polyline(origin, destination):
+    url = (f"https://restapi.amap.com/v3/direction/driving"
+           f"?key={AMAP_KEY}&origin={origin}&destination={destination}")
+    resp = requests.get(url).json()
+    path = resp['route']['paths'][0]
+    # 各段 polyline 用分号连接（不是逗号！）
+    return ';'.join([step['polyline'] for step in path['steps']])
+
+# Step 3: 生成静态地图（traffic=1 + paths + markers 三者叠加）
+def generate_static_map(origin, destination, output_path):
+    polyline = get_driving_polyline(origin, destination)
+    center = origin  # 中心点取起点
+
+    url = (f"https://restapi.amap.com/v3/staticmap?key={AMAP_KEY}"
+           f"&size=750*400&zoom=13&traffic=1"
+           f"&paths=4,0x0000FF,1,,:{polyline}"
+           f"&markers=mid,,A:{origin}|mid,,B:{destination}"
+           f"&location={center}")
+
+    resp = requests.get(url)
+    if resp.content[:1] == b'{':  # JSON 错误响应
+        print("错误:", resp.json())
+        return
+    with open(output_path, 'wb') as f:
+        f.write(resp.content)
+    print(f"地图已保存: {output_path} ({len(resp.content)} bytes)")
+
+# 使用
+origin = geocode("亚迪三村", "深圳")       # → "114.387077,22.728187"
+destination = geocode("坑梓比亚迪二期", "深圳")  # → "114.408862,22.763868"
+generate_static_map(origin, destination, "/tmp/route_map.png")
+```
+
+**参数对照表**：
+
+| 参数 | 示例 | 说明 |
+|------|------|------|
+| `size` | `750*400` | 图片尺寸，**必须用 `*`，不能用 `x`** |
+| `traffic` | `1` | 显示实时路况（1=开启，0=关闭） |
+| `paths` | `4,0x0000FF,1,,:坐标1,经度1,纬度1;坐标2,经度2,纬度2;...` | **分号**分隔各坐标点 |
+| `markers` | `mid,,A:起点\|mid,,B:终点` | 标记起点终点 |
+
+**常见错误排查**：
+
+| 错误 | 原因 | 解决 |
+|------|------|------|
+| 所有请求返回 20003 | `size` 用 `x` 而非 `*` | 改用 `size=750*400` |
+| `paths` 相关请求返回 20003 | 坐标用**逗号**分隔 | 改用**分号**分隔 |
+| 地图图片偏差大 | `location` 中心点偏离 | 设为路线中点或起点坐标 |
+
+**何时用静态地图 vs 二维码**：
+
+- **静态地图**：需要直接看到路线、路况、图片可离线使用、需要 AI 分析地图内容时
+- **二维码**：需要用户用高德 App 打开、可交互查看、导航时
+
+### 4. 位置服务
 
 ```python
 import urllib.request
